@@ -21,7 +21,7 @@ void main() {
     sum += texture2D( tDiffuse, vec2( vUv.x + 4.0 * uOffset, vUv.y ) ) * 0.051;
 
     center.xy = sum.xy;
-    center.z = mix(sum.z, center.z, 1.0 - step(-0.01, center.z) * 0.01 * uEdgeFix);
+    center.z = mix(sum.z, center.z, 1.0 - 0.01 * uEdgeFix);
 
     gl_FragColor = center;
 

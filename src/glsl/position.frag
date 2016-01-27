@@ -30,7 +30,7 @@ void main() {
         life = 0.5 + fract(positionInfo.w * 21.4131 + time);
     } else {
         vec3 delta = followPosition - position;
-        position += delta * (0.005 + life * 0.01) * attraction * (1.0 - smoothstep(50.0, 350.0, length(delta)));
+        position += delta * (0.005 + life * 0.01) * attraction * (1.0 - smoothstep(100.0, 500.0, length(delta)));
         position += curl(position * 0.02 + 3.0, time * 0.5, 0.1 + (1.0 - life) * 0.1) * speed;
     }
 

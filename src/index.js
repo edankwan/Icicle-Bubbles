@@ -101,19 +101,32 @@ function init() {
     simulatorGui.add(settings, 'dieSpeed', 0, 0.05).listen();
     simulatorGui.add(settings, 'radius', 0.1, 4);
     simulatorGui.add(settings, 'attraction', -2, 2);
+    simulatorGui.add({toggleMovement: _toggleMovement}, 'toggleMovement');
 
     var renderingGui = _gui.addFolder('Rendering');
     renderingGui.add(settings, 'inset', 0, 5);
     renderingGui.add(settings, 'blur', 0, 5);
+    renderingGui.add(settings, 'washout', 0, 1);
+    renderingGui.add(settings, 'brightness', 0, 1);
     renderingGui.add(settings, 'edgeFix', 0, 1);
     renderingGui.addColor(settings, 'bgColor');
-    renderingGui.open();
+
+    if(!mobile.isMobile) {
+        renderingGui.open();
+    }
 
     _logo = document.querySelector('.logo');
     _instruction = document.querySelector('.instruction');
+    if(mobile.isMobile) {
+        _instruction.style.visibility = 'hidden';
+    }
     document.querySelector('.footer').style.display = 'block';
     _footerItems = document.querySelectorAll('.footer span');
 
+    _gui.domElement.addEventListener('mousedown', _stopPropagation);
+    // _gui.domElement.addEventListener('mousemove', _stopPropagation);
+    _gui.domElement.addEventListener('touchstart', _stopPropagation);
+    // _gui.domElement.addEventListener('touchmove', _stopPropagation);
 
     window.addEventListener('resize', _onResize);
     window.addEventListener('mousemove', _onMove);
@@ -124,6 +137,10 @@ function init() {
     _onResize();
     _loop();
 
+}
+
+function _stopPropagation(evt) {
+    evt.stopPropagation();
 }
 
 function _bindTouch(func) {
@@ -139,9 +156,13 @@ function _onMove(evt) {
 
 function _onKeyUp(evt) {
     if(evt.keyCode === 32) {
-        settings.speed = settings.speed === 0 ? 1 : 0;
-        settings.dieSpeed = settings.dieSpeed === 0 ? 0.015  : 0;
+        _toggleMovement();
     }
+}
+
+function _toggleMovement() {
+    settings.speed = settings.speed === 0 ? 1 : 0;
+    settings.dieSpeed = settings.dieSpeed === 0 ? 0.015  : 0;
 }
 
 function _onResize() {
@@ -219,7 +240,7 @@ function _render(dt) {
 }
 
 
-mobile.pass(function() {
+// mobile.pass(function() {
     quickLoader.add('images/matcap.jpg', {
         onLoad: function(img) {
             settings.sphereMap = img;
@@ -230,4 +251,4 @@ mobile.pass(function() {
             init();
         }
     });
-});
+// });

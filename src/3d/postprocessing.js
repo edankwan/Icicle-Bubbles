@@ -53,7 +53,7 @@ function init(renderer) {
             uResolution: { type: 'v2', value: new THREE.Vector2( 1, 1 ) },
             uDiffuse: { type: 't', value: undef },
             uReduction: { type: 'f', value: 2 },
-            uBoost: { type: 'f', value: 1.35 }
+            uBoost: { type: 'f', value: 2 }
         },
         vertexShader: vs,
         fragmentShader: rawShaderPrefix + shaderParse(glslify('../glsl/vignette.frag'))
@@ -74,7 +74,12 @@ function renderFxaa(toScreen) {
 }
 
 function renderVignette(toScreen) {
-    _vignetteMaterial.uniforms.uDiffuse.value = _from;
+    var uniforms = _vignetteMaterial.uniforms;
+    uniforms.uDiffuse.value = _from;
+    var reduction = 2 + settings.brightness * 1.5;
+    var boost = 1.35 + settings.brightness * 0.55;
+    uniforms.uReduction.value += (reduction - uniforms.uReduction.value) * 0.05;
+    uniforms.uBoost.value += (boost - uniforms.uBoost.value) * 0.05;
     renderMaterial(_vignetteMaterial, toScreen);
 }
 

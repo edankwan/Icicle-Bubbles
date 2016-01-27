@@ -61,6 +61,7 @@ function init(renderer, camera) {
         uniforms: {
             uDepth : {type: 't', value: _depthRenderTarget},
             uInset: {type: 'f', value: 0},
+            uWashout: {type: 'f', value: 0},
             uAdditive : {type: 't', value: _additiveRenderTarget},
             uSphereMap : {type: 't', value: new THREE.Texture(settings.sphereMap)},
             uResolution : {type: 'v2', value: _resolution},
@@ -207,7 +208,7 @@ function preRender() {
     _depthRenderTarget.material.uniforms.uTexturePosition.value = simulator.positionRenderTarget;
     _renderer.render( _particlesScene, _camera, _depthRenderTarget );
 
-    _additiveRenderTarget.material.uniforms.uInset.value = settings.inset;
+    _additiveRenderTarget.material.uniforms.uInset.value += (settings.inset - _additiveRenderTarget.material.uniforms.uInset.value) * 0.05;
     _renderer.setClearColor(0, 0);
     _renderer.clearTarget(_additiveRenderTarget, true, true, true);
     _particles.material = _additiveRenderTarget.material;
@@ -218,10 +219,13 @@ function preRender() {
     var blurRadius = settings.blur;
 
     if(blurRadius) {
-        _blurHMaterial.uniforms.uOffset.value = blurRadius / _width;
-        _blurVMaterial.uniforms.uOffset.value = blurRadius / _height;
-        _blurHMaterial.uniforms.uEdgeFix.value = settings.edgeFix;
-        _blurVMaterial.uniforms.uEdgeFix.value = settings.edgeFix;
+        var uniforms = _blurHMaterial.uniforms;
+        uniforms.uOffset.value += (blurRadius / _width - uniforms.uOffset.value) * 0.05;
+        uniforms.uEdgeFix.value += (settings.edgeFix - uniforms.uEdgeFix.value) * 0.05;
+
+        var uniforms = _blurVMaterial.uniforms;
+        uniforms.uOffset.value += (blurRadius / _height - uniforms.uOffset.value) * 0.05;
+        uniforms.uEdgeFix.value += (settings.edgeFix - uniforms.uEdgeFix.value) * 0.05;
 
         _renderer.clearTarget(_blurRenderTarget, true, true, true);
         mesh.material = _blurHMaterial;
@@ -245,7 +249,9 @@ function update(renderTarget, dt) {
     var clearAlpha = _renderer.getClearAlpha();
     _renderer.autoClearColor = false;
 
-    _particlesMaterial.uniforms.uInset.value = settings.inset;
+    var uniforms = _particlesMaterial.uniforms;
+    uniforms.uInset.value = _additiveRenderTarget.material.uniforms.uInset.value;
+    uniforms.uWashout.value += (settings.washout - uniforms.uWashout.value) * 0.05;
     _renderer.render( _quadScene, _quadCamera, renderTarget );
 
     _renderer.setClearColor(clearColor, clearAlpha);

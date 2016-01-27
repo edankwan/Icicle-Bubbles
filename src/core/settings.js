@@ -10,6 +10,8 @@ exports.attraction = -0.5 ;
 exports.blur = 2;
 exports.inset = 0.75;
 exports.edgeFix = 0.05;
+exports.washout = 0;
+exports.brightness = 0;
 
 exports.bgColor = '#137d84';
 

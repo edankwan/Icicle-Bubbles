@@ -1,6 +1,7 @@
 var isMobile = /(iPad|iPhone|Android)/i.test(navigator.userAgent);
 
 exports.pass = pass;
+exports.isMobile = isMobile;
 
 var _callback;
 
