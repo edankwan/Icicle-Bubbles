@@ -12,7 +12,7 @@ void main() {
     vec4 worldPosition = modelMatrix * vec4( positionInfo.xyz, 1.0 );
     vec4 mvPosition = viewMatrix * worldPosition;
 
-    vDepth = length(uCameraPosition - worldPosition.xyz);
+    vDepth = -mvPosition.z;
     gl_PointSize = position.z / length( mvPosition.xyz ) * smoothstep(0.0, 0.2, positionInfo.w);
     vHalfSize = gl_PointSize * 0.5;
     vLife = positionInfo.w;
