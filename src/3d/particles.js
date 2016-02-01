@@ -157,7 +157,8 @@ function _initBlurRenderTarget() {
             tDiffuse : {type: 't', value: _additiveRenderTarget},
             uResolution : {type: 'v2', value: _resolution},
             uOffset : {type: 'f', value: 0},
-            uEdgeFix : {type: 'f', value: 0.1}
+            uEdgeFix : {type: 'f', value: 0.1},
+            uBlurZ : {type: 'f', value: 0}
         },
         vertexShader: shaderParse(glslify('../glsl/particles.vert')),
         fragmentShader: shaderParse(glslify('../glsl/blurH.frag')),
@@ -178,7 +179,8 @@ function _initBlurRenderTarget() {
             tDiffuse : {type: 't', value: _blurRenderTarget},
             uResolution : {type: 'v2', value: _resolution},
             uOffset : {type: 'f', value: 0},
-            uEdgeFix : {type: 'f', value: 0.1}
+            uEdgeFix : {type: 'f', value: 0.1},
+            uBlurZ : {type: 'f', value: 0}
         },
         vertexShader: shaderParse(glslify('../glsl/particles.vert')),
         fragmentShader: shaderParse(glslify('../glsl/blurV.frag')),
@@ -222,10 +224,12 @@ function preRender() {
         var uniforms = _blurHMaterial.uniforms;
         uniforms.uOffset.value += (blurRadius / _width - uniforms.uOffset.value) * 0.05;
         uniforms.uEdgeFix.value += (settings.edgeFix - uniforms.uEdgeFix.value) * 0.05;
+        uniforms.uBlurZ.value += (settings.blurZ - uniforms.uBlurZ.value) * 0.05;
 
         var uniforms = _blurVMaterial.uniforms;
         uniforms.uOffset.value += (blurRadius / _height - uniforms.uOffset.value) * 0.05;
         uniforms.uEdgeFix.value += (settings.edgeFix - uniforms.uEdgeFix.value) * 0.05;
+        uniforms.uBlurZ.value += (settings.blurZ - uniforms.uBlurZ.value) * 0.05;
 
         _renderer.clearTarget(_blurRenderTarget, true, true, true);
         mesh.material = _blurHMaterial;

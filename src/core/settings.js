@@ -12,6 +12,7 @@ exports.inset = 0.75;
 exports.edgeFix = 0.05;
 exports.washout = 0.3;
 exports.brightness = 0.1;
+exports.blurZ = 0.2;
 
 exports.bgColor = '#137d84';
 

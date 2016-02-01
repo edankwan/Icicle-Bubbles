@@ -105,9 +105,10 @@ function init() {
 
     var renderingGui = _gui.addFolder('Rendering');
     renderingGui.add(settings, 'inset', 0, 5);
-    renderingGui.add(settings, 'blur', 0, 5);
     renderingGui.add(settings, 'washout', 0, 1).step(0.001);
     renderingGui.add(settings, 'brightness', 0, 1).step(0.001);
+    renderingGui.add(settings, 'blur', 0, 5);
+    renderingGui.add(settings, 'blurZ', 0, 1).step(0.001);
     renderingGui.add(settings, 'edgeFix', 0, 1).step(0.001);
     renderingGui.addColor(settings, 'bgColor');
 
