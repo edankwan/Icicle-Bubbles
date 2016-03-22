@@ -1,5 +1,7 @@
 uniform vec2 uResolution;
 uniform sampler2D uDiffuse;
+uniform sampler2D uDistance;
+uniform float uAmount;
 
 #pragma glslify: fxaa = require(glsl-fxaa)
 

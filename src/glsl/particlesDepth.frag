@@ -1,17 +1,14 @@
 varying float vDepth;
+varying float vHalfSize;
 
-vec4 pack1K ( float depth ) {
-
-   depth /= 1000.0;
-   const vec4 bitSh = vec4( 256.0 * 256.0 * 256.0, 256.0 * 256.0, 256.0, 1.0 );
-   const vec4 bitMsk = vec4( 0.0, 1.0 / 256.0, 1.0 / 256.0, 1.0 / 256.0 );
-   vec4 res = fract( depth * bitSh );
-   res -= res.xxyz * bitMsk;
-   return res;
-}
+const float EPS = 0.001;
 
 void main() {
-    if(length(gl_PointCoord.xy - 0.5) > 0.5) discard;
-    gl_FragColor = pack1K(vDepth);
+
+    vec2 toCenter = (gl_PointCoord.xy - 0.5) * 2.0;
+    float isVisible = step(-1.0 + EPS, -length(toCenter));
+    if(isVisible < 0.5) discard;
+    gl_FragColor = vec4(vDepth, 1.0, 0.0, 1.0);
+    // gl_FragColor = vec4(vDepth, smoothstep(vHalfSize - 6.0, vHalfSize, d * vHalfSize), 0.0, 1.0);
 
 }

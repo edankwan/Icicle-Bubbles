@@ -16,7 +16,7 @@
     "incremental-convex-hull": "^1.0.1",
     "min-signal": "^0.0.5",
     "mout": "0.11",
-    "quick-loader": "^0.1.4",
+    "quick-loader": "^0.1.5",
     "raf": "3.0.0",
     "stats.js": "mrdoob/stats.js",
     "three": "file:./src/libs/global_three/",

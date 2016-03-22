@@ -13,6 +13,12 @@ exports.fract = fract;
 exports.hash = hash;
 exports.hash2 = hash2;
 exports.sign = sign;
+exports.isPowerOfTwo = isPowerOfTwo;
+exports.powerTwoCeiling = powerTwoCeiling;
+exports.latLngBearing = latLngBearing;
+exports.distanceTo = distanceTo;
+exports.distanceSqrTo = distanceSqrTo;
+exports.latLngDistance = latLngDistance;
 
 var PI = Math.PI;
 var TAU = exports.TAU = PI * 2;
@@ -60,4 +66,45 @@ function hash2 (val1, val2) {
 
 function sign (val) {
     return val ? val < 0 ? - 1 : 1 : 0;
+}
+
+function isPowerOfTwo( value ) {
+    return ( (value & -value) == value );
+}
+
+function powerTwoCeiling(val) {
+    if( isPowerOfTwo( val ) )return val;
+    val = Math.pow(2, Math.ceil(Math.log(Math.sqrt(val)) / Math.LN2 ));
+    return val * val;
+}
+
+function latLngBearing(lat1, lng1, lat2, lng2) {
+    //http://www.movable-type.co.uk/scripts/latlong.html
+    var y = Math.sin(lng2-lng1) * Math.cos(lat2);
+    var x = Math.cos(lat1)*Math.sin(lat2) - Math.sin(lat1)*Math.cos(lat2)*Math.cos(lng2-lng1);
+    return Math.atan2(y, x);
+}
+
+function distanceTo(dX, dY) {
+    return Math.sqrt(dX * dX + dY * dY);
+}
+
+function distanceSqrTo(dX, dY) {
+    return dX * dX + dY * dY;
+}
+
+//http://www.movable-type.co.uk/scripts/latlong.html
+function latLngDistance(lat1, lng1, lat2, lng2) {
+    var R = 6371; // km
+    var PI = Math.PI;
+    var p1 = lat1 * PI / 180;
+    var p2 = lat2 * PI / 180;
+    var tp = (lat2-lat1) * PI / 180;
+    var td = (lng2-lng1) * PI / 180;
+
+    var a = Math.sin(tp/2) * Math.sin(tp/2) +
+        Math.cos(p1) * Math.cos(p2) *
+        Math.sin(td/2) * Math.sin(td/2);
+    var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return R * c;
 }

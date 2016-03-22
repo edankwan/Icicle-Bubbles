@@ -8,11 +8,6 @@ uniform sampler2D uAdditive;
 uniform sampler2D uSphereMap;
 varying vec2 vUv;
 
-#pragma glslify: snoise4 = require(glsl-noise/simplex/4d)
-#pragma glslify: toLinear = require('glsl-gamma/in')
-#pragma glslify: toGamma  = require('glsl-gamma/out')
-
-
 #define saturate(a) clamp( a, 0.0, 1.0 )
 #define whiteCompliment(a) ( 1.0 - saturate( a ) )
 #define LOG2 1.442695
@@ -22,32 +17,37 @@ vec3 blendOverlay(vec3 base, vec3 blend) {
 }
 
 void main() {
-    vec2 screenOffset = (vUv - vec2(0.5)) * 2.0;
 
     vec4 merged = texture2D( uAdditive, vUv );
+
+    float alpha = smoothstep(0.0, 1.0, merged.w);
+
+    if(alpha < 0.001) discard;
+
     vec4 outer = merged;
 
-    float alpha = smoothstep(0.0, 0.01, merged.z);
     merged.xy /= merged.z;
     merged.z = sqrt(1.0 - merged.x * merged.x - merged.y * merged.y);
-    merged.xyz = normalize(merged.xyz);
 
-    vec2 uv = (merged.xy + 1.0 + screenOffset * 0.3 ) * 0.5;
-    vec4 color = toLinear(texture2D( uSphereMap, uv ));
+    vec4 color =  texture2D( uSphereMap, merged.xy * 0.5 + 0.5 );
 
     outer.xy /= -outer.z * (1.0 + uInset);
     outer.z = sqrt(1.0 - outer.x * outer.x - outer.y * outer.y);
     outer.xyz = normalize(outer.xyz);
+    vec4 blend =  texture2D( uSphereMap, outer.xy * 0.5 + 0.5 );
 
-    uv = (outer.xy + 1.0 + screenOffset * 0.3) * 0.5;
-    vec4 blend = toLinear(texture2D( uSphereMap, uv ));
+    vec2 centers = texture2D( uDepth, gl_FragCoord.xy  / uResolution ).xy;
+    float centerZ = centers.r;
+    centerZ = max(0.0, centerZ - 120.0);
 
-    float fogFactor = whiteCompliment( exp2( - 0.002 * 0.002 * pow(merged.w + 1000.0, 2.0) * LOG2 ) );
+    float fogFactor = whiteCompliment( exp2( - 0.002  * 0.002     * centerZ *centerZ * LOG2 ) );
 
-    color.xyz = mix(blendOverlay(color.xyz,  blend.xyz), max(color.xyz,  blend.xyz), uWashout);
-    color.xyz = mix(color.xyz, uFogColor, 0.3 + fogFactor * 0.7);
+    color.xyz = min(vec3(1.0), mix(blendOverlay(color.xyz,  blend.xyz), max(color.xyz,  blend.xyz), uWashout));
+    // color.xyz = mix(min(vec3(1.0), color.xyz), uFogColor , fogFactor);
 
-    gl_FragColor = vec4(toGamma(color.xyz), alpha);
+    // alpha *=  1.0 - centers.y;
+
+    gl_FragColor = min(vec4(1.0), vec4(color.xyz, alpha * (1.0 - fogFactor )));
 
 }
 

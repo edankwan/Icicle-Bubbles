@@ -3,7 +3,6 @@ var THREE = require('three');
 var shaderParse = require('../helpers/shaderParse');
 var glslify = require('glslify');
 var simulator = require('./simulator');
-var postprocessing = require('./postprocessing');
 
 var undef;
 
@@ -13,6 +12,7 @@ exports.resize = resize;
 exports.preRender = preRender;
 exports.update = update;
 
+var _camera;
 var _renderer;
 var _particleGeometry;
 
@@ -32,12 +32,19 @@ var _blurRenderTarget;
 var _resolution;
 var _width;
 var _height;
+var _baseInset;
 
-var TEXTURE_WIDTH = settings.simulatorTextureWidth;
-var TEXTURE_HEIGHT = settings.simulatorTextureHeight;
-var AMOUNT = TEXTURE_WIDTH * TEXTURE_HEIGHT;
+var TEXTURE_WIDTH;
+var TEXTURE_HEIGHT;
+var AMOUNT;
 
 function init(renderer, camera) {
+
+    TEXTURE_WIDTH = settings.simulatorTextureWidth;
+    TEXTURE_HEIGHT = settings.simulatorTextureHeight;
+    AMOUNT = TEXTURE_WIDTH * TEXTURE_HEIGHT;
+
+    _baseInset = settings.inset;
 
     _quadCamera = new THREE.Camera();
     _quadCamera.position.z = 1;
@@ -72,10 +79,10 @@ function init(renderer, camera) {
         vertexShader: shaderParse(glslify('../glsl/particles.vert')),
         fragmentShader: shaderParse(glslify('../glsl/particles.frag'))
     });
-    _particlesMaterial.uniforms.uSphereMap.value.anisotropy = 32;
+
+    _particlesMaterial.uniforms.uSphereMap.value.anisotropy = renderer.getMaxAnisotropy();
     _particlesMaterial.uniforms.uSphereMap.value.needsUpdate = true;
     _particlesMaterial.uniforms.uSphereMap.value.flipY = false;
-
     mesh = exports.mesh = new THREE.Mesh(geomtry, _particlesMaterial);
     _quadScene.add(mesh);
 }
@@ -88,7 +95,7 @@ function _initGeometry() {
         i3 = i * 3;
         position[i3 + 0] = (i % TEXTURE_WIDTH) / TEXTURE_WIDTH;
         position[i3 + 1] = ~~(i / TEXTURE_WIDTH) / TEXTURE_HEIGHT;
-        position[i3 + 2] = 800 + Math.pow(Math.random(), 5) * 36000; // size
+        position[i3 + 2] = 400 + Math.pow(Math.random(), 5) * 750; // size
     }
     _particleGeometry = new THREE.BufferGeometry();
     _particleGeometry.addAttribute( 'position', new THREE.BufferAttribute( position, 3 ));
@@ -98,7 +105,8 @@ function _initGeometry() {
 function _initDepthRenderTarget() {
     var material = new THREE.ShaderMaterial({
         uniforms: {
-            uTexturePosition: {type: 't', value: null},
+            uParticleSize : {type: 'f', value: settings.particleSize},
+            uTexturePosition: {type: 't', value: undef},
             uCameraPosition: {type: 'v3', value: _camera.position}
         },
         vertexShader: shaderParse(glslify('../glsl/particlesDepth.vert')),
@@ -110,16 +118,18 @@ function _initDepthRenderTarget() {
         minFilter: THREE.NearestFilter,
         magFilter: THREE.NearestFilter,
         format: THREE.RGBAFormat,
+        type: THREE.FloatType,
         stencilBuffer: false,
-        transparent: true
     });
     _depthRenderTarget.material = material;
+    settings.distanceMap = _depthRenderTarget;
 }
 
 function _initAdditiveRenderTarget() {
     var material = new THREE.ShaderMaterial({
         uniforms: {
-            uTexturePosition: {type: 't', value: null},
+            uParticleSize : {type: 'f', value: settings.particleSize},
+            uTexturePosition: {type: 't', value: undef},
             uDepth: {type: 't', value: _depthRenderTarget},
             uInset: {type: 'f', value: 0},
             uResolution: {type: 'v2', value: _resolution},
@@ -132,7 +142,7 @@ function _initAdditiveRenderTarget() {
         blendEquation : THREE.AddEquation,
         blendSrc : THREE.OneFactor,
         blendDst : THREE.OneFactor ,
-        blendEquationAlpha : THREE.MinEquation,
+        blendEquationAlpha : THREE.AddEquation,
         blendSrcAlpha : THREE.OneFactor,
         blendDstAlpha : THREE.OneFactor,
         transparent: true
@@ -157,7 +167,6 @@ function _initBlurRenderTarget() {
             tDiffuse : {type: 't', value: _additiveRenderTarget},
             uResolution : {type: 'v2', value: _resolution},
             uOffset : {type: 'f', value: 0},
-            uEdgeFix : {type: 'f', value: 0.1},
             uBlurZ : {type: 'f', value: 0}
         },
         vertexShader: shaderParse(glslify('../glsl/particles.vert')),
@@ -179,7 +188,6 @@ function _initBlurRenderTarget() {
             tDiffuse : {type: 't', value: _blurRenderTarget},
             uResolution : {type: 'v2', value: _resolution},
             uOffset : {type: 'f', value: 0},
-            uEdgeFix : {type: 'f', value: 0.1},
             uBlurZ : {type: 'f', value: 0}
         },
         vertexShader: shaderParse(glslify('../glsl/particles.vert')),
@@ -208,12 +216,17 @@ function preRender() {
     _renderer.clearTarget(_depthRenderTarget, true, true, true);
     _particles.material = _depthRenderTarget.material;
     _depthRenderTarget.material.uniforms.uTexturePosition.value = simulator.positionRenderTarget;
+    _depthRenderTarget.material.uniforms.uParticleSize.value = settings.particleSize;
     _renderer.render( _particlesScene, _camera, _depthRenderTarget );
+    // _renderer.render( _particlesScene, _camera );
 
-    _additiveRenderTarget.material.uniforms.uInset.value += (settings.inset - _additiveRenderTarget.material.uniforms.uInset.value) * 0.05;
+    _baseInset += (settings.inset - _baseInset) * 0.05;
+
     _renderer.setClearColor(0, 0);
     _renderer.clearTarget(_additiveRenderTarget, true, true, true);
     _particles.material = _additiveRenderTarget.material;
+    _additiveRenderTarget.material.uniforms.uInset.value = _baseInset + settings.insetExtra;
+    _additiveRenderTarget.material.uniforms.uParticleSize.value = settings.particleSize;
     _additiveRenderTarget.material.uniforms.uTexturePosition.value = simulator.positionRenderTarget;
     _renderer.render( _particlesScene, _camera, _additiveRenderTarget );
     // _renderer.render( _particlesScene, _camera );
@@ -223,12 +236,10 @@ function preRender() {
     if(blurRadius) {
         var uniforms = _blurHMaterial.uniforms;
         uniforms.uOffset.value += (blurRadius / _width - uniforms.uOffset.value) * 0.05;
-        uniforms.uEdgeFix.value += (settings.edgeFix - uniforms.uEdgeFix.value) * 0.05;
         uniforms.uBlurZ.value += (settings.blurZ - uniforms.uBlurZ.value) * 0.05;
 
-        var uniforms = _blurVMaterial.uniforms;
+        uniforms = _blurVMaterial.uniforms;
         uniforms.uOffset.value += (blurRadius / _height - uniforms.uOffset.value) * 0.05;
-        uniforms.uEdgeFix.value += (settings.edgeFix - uniforms.uEdgeFix.value) * 0.05;
         uniforms.uBlurZ.value += (settings.blurZ - uniforms.uBlurZ.value) * 0.05;
 
         _renderer.clearTarget(_blurRenderTarget, true, true, true);
@@ -247,7 +258,7 @@ function preRender() {
 
 }
 
-function update(renderTarget, dt) {
+function update(renderTarget) {
     var autoClearColor = _renderer.autoClearColor;
     var clearColor = _renderer.getClearColor().getHex();
     var clearAlpha = _renderer.getClearAlpha();

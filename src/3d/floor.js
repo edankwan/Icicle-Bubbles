@@ -11,7 +11,7 @@ function init() {
     var planeMaterial = new THREE.MeshStandardMaterial( {
         color: 0xffffff,
         roughness: 0.4,
-        metalness: 0.4,
+        metalness: 0.2,
     } );
     var mesh = exports.mesh = new THREE.Mesh( geometry, planeMaterial );
 

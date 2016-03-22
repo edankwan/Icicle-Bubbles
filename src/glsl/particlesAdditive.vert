@@ -1,5 +1,6 @@
 uniform sampler2D uTexturePosition;
 uniform vec3 uCameraPosition;
+uniform float uParticleSize;
 
 varying float vHalfSize;
 varying float vLife;
@@ -13,10 +14,12 @@ void main() {
     vec4 mvPosition = viewMatrix * worldPosition;
 
     vDepth = -mvPosition.z;
-    gl_PointSize = position.z / length( mvPosition.xyz ) * smoothstep(0.0, 0.2, positionInfo.w);
+    gl_PointSize = position.z / length( mvPosition.xyz ) * smoothstep(0.0, 0.2, positionInfo.w) * uParticleSize;
     vHalfSize = gl_PointSize * 0.5;
     vLife = positionInfo.w;
 
     gl_Position = projectionMatrix * mvPosition;
+
+    gl_Position.y += step(200.0, gl_PointSize) * 8192.0;
 
 }

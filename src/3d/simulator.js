@@ -16,11 +16,10 @@ var _renderer;
 var _mesh;
 var _scene;
 var _camera;
-var _followPointTime = 0;
 
-var TEXTURE_WIDTH = exports.TEXTURE_WIDTH = settings.simulatorTextureWidth;
-var TEXTURE_HEIGHT = exports.TEXTURE_HEIGHT = settings.simulatorTextureHeight;
-var AMOUNT = exports.AMOUNT = TEXTURE_WIDTH * TEXTURE_HEIGHT;
+var TEXTURE_WIDTH;
+var TEXTURE_HEIGHT;
+var AMOUNT;
 
 exports.init = init;
 exports.update = update;
@@ -29,8 +28,11 @@ exports.initAnimation = 0;
 
 function init(renderer) {
 
+    TEXTURE_WIDTH = exports.TEXTURE_WIDTH = settings.simulatorTextureWidth;
+    TEXTURE_HEIGHT = exports.TEXTURE_HEIGHT = settings.simulatorTextureHeight;
+    AMOUNT = exports.AMOUNT = TEXTURE_WIDTH * TEXTURE_HEIGHT;
+
     _renderer = renderer;
-    _followPoint = new THREE.Vector3();
 
     var rawShaderPrefix = 'precision ' + renderer.capabilities.precision + ' float;\n';
 
@@ -42,10 +44,6 @@ function init(renderer) {
     if ( !gl.getExtension( 'OES_texture_float' )) {
         alert( 'No OES_texture_float support for float textures!' );
         return;
-    }
-    if ( !gl.getExtension( 'EXT_blend_minmax' )) {
-        alert( 'No EXT_blend_minmax support!' );
-        // return;
     }
 
     _scene = new THREE.Scene();
@@ -69,6 +67,7 @@ function init(renderer) {
             mouse3d: { type: 'v3', value: new THREE.Vector3() },
             speed: { type: 'f', value: 0 },
             dieSpeed: { type: 'f', value: 0 },
+            deltaDistance: { type: 'f', value: 0 },
             radius: { type: 'f', value: 0 },
             attraction: { type: 'f', value: 0 },
             time: { type: 'f', value: 0 },
@@ -118,6 +117,7 @@ function _updatePosition(dt) {
     _mesh.material = _positionShader;
     _positionShader.uniforms.textureDefaultPosition.value = _textureDefaultPosition;
     _positionShader.uniforms.texturePosition.value = _positionRenderTarget2;
+    _positionShader.uniforms.deltaDistance.value = settings.deltaDistance;
     _positionShader.uniforms.time.value += dt * 0.001;
     _renderer.render( _scene, _camera, _positionRenderTarget );
 }
@@ -128,7 +128,7 @@ function _createPositionTexture() {
     var r, phi, theta;
     for(var i = 0; i < AMOUNT; i++) {
         i4 = i * 4;
-        r = (0.5 + Math.random() * 0.5) * 50;
+        r = (0.5 + Math.random() * 0.5) * 75;
         phi = (Math.random() - 0.5) * Math.PI;
         theta = Math.random() * Math.PI * 2;
         positions[i4 + 0] = r * Math.cos(theta) * Math.cos(phi);
