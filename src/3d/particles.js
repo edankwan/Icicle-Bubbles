@@ -36,8 +36,6 @@ var _baseInset;
 
 var TEXTURE_WIDTH;
 var TEXTURE_HEIGHT;
-var TEXTURE_WIDTH_MINUS_1;
-var TEXTURE_HEIGHT_MINUS_1;
 var AMOUNT;
 
 function init(renderer, camera) {
@@ -45,8 +43,6 @@ function init(renderer, camera) {
     TEXTURE_WIDTH = settings.simulatorTextureWidth;
     TEXTURE_HEIGHT = settings.simulatorTextureHeight;
     AMOUNT = TEXTURE_WIDTH * TEXTURE_HEIGHT;
-    TEXTURE_WIDTH_MINUS_1 = TEXTURE_WIDTH - 1;
-    TEXTURE_HEIGHT_MINUS_1 = TEXTURE_HEIGHT - 1;
 
     _baseInset = settings.inset;
 
@@ -97,8 +93,8 @@ function _initGeometry() {
     var i3;
     for(var i = 0; i < AMOUNT; i++ ) {
         i3 = i * 3;
-        position[i3 + 0] = (i % TEXTURE_WIDTH) / TEXTURE_WIDTH_MINUS_1;
-        position[i3 + 1] = ~~(i / TEXTURE_WIDTH) / TEXTURE_HEIGHT_MINUS_1;
+        position[i3 + 0] = ((i % TEXTURE_WIDTH) + 0.5) / TEXTURE_WIDTH;
+        position[i3 + 1] = (~~(i / TEXTURE_WIDTH) + 0.5) / TEXTURE_HEIGHT;
         position[i3 + 2] = 400 + Math.pow(Math.random(), 5) * 750; // size
     }
     _particleGeometry = new THREE.BufferGeometry();
