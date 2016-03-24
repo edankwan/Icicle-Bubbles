@@ -115,8 +115,8 @@ function renderFxaa(toScreen) {
 function renderVignette(toScreen) {
     var uniforms = _vignetteMaterial.uniforms;
     uniforms.uDiffuse.value = _from;
-    var reduction = 2 + settings.brightness * 1.5;
-    var boost = 1.35 + settings.brightness * 0.55;
+    var reduction = (1.5 + settings.brightness * 1.5) * settings.vignetteMultiplier;
+    var boost = 0.8 + settings.brightness * 0.55;
     uniforms.uReduction.value += (reduction - uniforms.uReduction.value) * 0.05;
     uniforms.uBoost.value += (boost - uniforms.uBoost.value) * 0.05;
     renderMaterial(_vignetteMaterial, toScreen);
@@ -134,7 +134,6 @@ function renderDof(toScreen) {
         _renderer.readRenderTargetPixels ( _depth1, 0, 0, 1, 1, _depth1Buffer );
         distance = _depth1Buffer[0] || distance;
     }
-
 
     var uniforms = _dofMaterial.uniforms;
     var prevDistance = uniforms.uDofDistance.value;

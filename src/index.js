@@ -37,11 +37,23 @@ var _time = 0;
 var _ray = new THREE.Ray();
 
 var _initAnimation = 0;
+var _isSkipRendering = false;
 
 var _logo;
 var _instruction;
 var _footerItems;
 
+var _bgm;
+var _audioType;
+
+function _createAudio(id) {
+    var audio = document.createElement('audio');
+    if(!_audioType) {
+        _audioType = audio.canPlayType('audio/mp3') ? 'mp3' : 'ogg';
+    }
+    audio.src = 'audio/' + id + '.' + _audioType;
+    return audio;
+}
 
 function init() {
 
@@ -57,6 +69,11 @@ function init() {
         document.body.appendChild( _stats.domElement );
     }
 
+    _bgm = _createAudio('bgm');
+    _bgm.loop = true;
+    _bgm.volume = 0;
+    _bgm.play();
+
     _bgColor = new THREE.Color(settings.bgColor);
     settings.mouseX = 0;
     settings.mouseY = 0;
@@ -68,7 +85,8 @@ function init() {
     _renderer = new THREE.WebGLRenderer({
         // transparent : true,
         premultipliedAlpha : false,
-        // antialias : true
+        // antialias : true,
+        preserveDrawingBuffer : true
     });
 
     _renderer.setClearColor(settings.bgColor);
@@ -109,6 +127,7 @@ function init() {
         settings.simulatorTextureWidth = 32;
         settings.simulatorTextureHeight = 32;
         settings.particleSize = 16;
+        settings.vignetteMultiplier = 0.5;
     }
 
     if(score < 8.5) {
@@ -117,7 +136,7 @@ function init() {
         settings.dof = 0;
 
         if(score < 7.5 && score) {
-            settings.particleSize = 24;
+            settings.particleSize = 18;
             settings.fxaa = false;
         }
     }
@@ -166,6 +185,22 @@ function init() {
     renderingGui.add(settings, 'fxaa').listen();
     renderingGui.addColor(settings, 'bgColor').listen();
 
+    if(!settings.isMobile) {
+        simulatorGui.open();
+        renderingGui.open();
+    }
+
+    _gui.add(settings, 'bgm');
+    _gui.add({fn: function() {
+        _isSkipRendering = true;
+        var link = document.createElement('a');
+        link.download = 'capture.png';
+        link.href = _renderer.domElement.toDataURL();
+        link.click();
+        _isSkipRendering = false;
+    }}, 'fn').name('save as image');
+
+
     function onBlurChange(v) {
         blurZ.__li.style.pointerEvents = v ? 'auto' : 'none';
         blurZ.domElement.parentNode.style.opacity = v ? 1 : 0.1;
@@ -180,9 +215,7 @@ function init() {
     dof.onChange(onDofChange);
     onDofChange(settings.dof);
 
-    if(!mobile.isMobile) {
-        renderingGui.open();
-    }
+    _gui.close();
 
     _logo = document.querySelector('.logo');
     _instruction = document.querySelector('.instruction');
@@ -255,7 +288,7 @@ function _loop() {
     var newTime = Date.now();
     raf(_loop);
     if(settings.useStats) _stats.begin();
-    _render(newTime - _time, newTime);
+    if(!_isSkipRendering) _render(newTime - _time, newTime);
     if(settings.useStats) _stats.end();
     _time = newTime;
 }
@@ -329,14 +362,16 @@ function _render(dt, newTime) {
     settings.prevMouseX = settings.mouseX;
     settings.prevMouseY = settings.mouseY;
 
-}
+    _bgm.volume += (+(settings.bgm) * 0.5 - _bgm.volume) * 0.05;
 
+}
 
 quickLoader.add('images/matcap.jpg', {
     onLoad: function(img) {
         settings.sphereMap = img;
     }
 });
+
 quickLoader.start(function(percent) {
     if(percent === 1) {
         init();

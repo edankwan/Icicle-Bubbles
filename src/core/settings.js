@@ -18,4 +18,8 @@ exports.dofMouse = true;
 exports.fxaa = true;
 exports.particleSize = 30;
 
+exports.vignetteMultiplier = 0.8;
+
 exports.bgColor = '#137d84';
+
+exports.bgm = true;

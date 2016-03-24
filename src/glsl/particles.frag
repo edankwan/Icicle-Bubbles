@@ -40,7 +40,7 @@ void main() {
     float centerZ = centers.r;
     centerZ = max(0.0, centerZ - 120.0);
 
-    float fogFactor = whiteCompliment( exp2( - 0.002  * 0.002     * centerZ *centerZ * LOG2 ) );
+    float fogFactor = whiteCompliment( exp2( - 0.0015  * 0.0015     * centerZ *centerZ * LOG2 ) );
 
     color.xyz = min(vec3(1.0), mix(blendOverlay(color.xyz,  blend.xyz), max(color.xyz,  blend.xyz), uWashout));
     // color.xyz = mix(min(vec3(1.0), color.xyz), uFogColor , fogFactor);

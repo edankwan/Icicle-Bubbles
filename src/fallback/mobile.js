@@ -1,4 +1,5 @@
 var isMobile = /(iPad|iPhone|Android)/i.test(navigator.userAgent);
+if(isMobile) document.documentElement.className += ' is-mobile';
 
 exports.pass = pass;
 exports.isMobile = isMobile;
