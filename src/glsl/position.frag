@@ -8,6 +8,7 @@ uniform float radius;
 uniform float attraction;
 uniform float initAnimation;
 uniform float deltaDistance;
+uniform float curlSize;
 uniform vec3 mouse3d;
 
 #pragma glslify: curl = require(./helpers/curl4)
@@ -34,7 +35,7 @@ void main() {
         vec3 delta = followPosition - position;
         float deltaLength = length(delta);
         position += delta * (0.005 + life * 0.01) * attraction * (1.0 - smoothstep(100.0, 500.0, deltaLength));
-        position += curl(position * 0.02 + 3.0, time * 0.5, 0.1 + (1.0 - life) * 0.1) * speed;
+        position += curl(position * curlSize, time * 0.2, 0.2) * speed;
 
     }
 

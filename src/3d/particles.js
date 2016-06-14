@@ -1,8 +1,10 @@
 var settings = require('../core/settings');
 var THREE = require('three');
 var shaderParse = require('../helpers/shaderParse');
+var motionBlur = require('./postprocessing/motionBlur/motionBlur');
 var glslify = require('glslify');
 var simulator = require('./simulator');
+var quickLoader = require('quick-loader');
 
 var undef;
 
@@ -11,6 +13,9 @@ exports.init = init;
 exports.resize = resize;
 exports.preRender = preRender;
 exports.update = update;
+
+
+var _depthRenderTarget ;
 
 var _camera;
 var _renderer;
@@ -22,7 +27,6 @@ var _quadCamera;
 var _particles;
 var _particlesMaterial;
 var _particlesScene;
-var _depthRenderTarget;
 var _additiveRenderTarget;
 
 var _blurHMaterial;
@@ -33,6 +37,8 @@ var _resolution;
 var _width;
 var _height;
 var _baseInset;
+
+var sphereTextures = {};
 
 var TEXTURE_WIDTH;
 var TEXTURE_HEIGHT;
@@ -63,6 +69,13 @@ function init(renderer, camera) {
     _particles.frustumCulled = false;
     _particlesScene.add(_particles);
 
+    _addSphereTexture('default', quickLoader.add('images/matcap.jpg', {onLoad: _onSphereMapLoad.bind('default')}).content);
+    _addSphereTexture('metal', settings.sphereMap);
+    _addSphereTexture('plastic', quickLoader.add('images/matcap_plastic.jpg', {onLoad: _onSphereMapLoad.bind('plastic')}).content);
+    sphereTextures.metal.needsUpdate = true;
+
+    quickLoader.start();
+
     var geomtry =  new THREE.PlaneBufferGeometry( 2, 2 );
     _particlesMaterial = new THREE.ShaderMaterial({
         uniforms: {
@@ -70,7 +83,7 @@ function init(renderer, camera) {
             uInset: {type: 'f', value: 0},
             uWashout: {type: 'f', value: 0},
             uAdditive : {type: 't', value: _additiveRenderTarget},
-            uSphereMap : {type: 't', value: new THREE.Texture(settings.sphereMap)},
+            uSphereMap : {type: 't', value: sphereTextures.default},
             uResolution : {type: 'v2', value: _resolution},
             uFogColor: {type: 'c', value: new THREE.Color()}
         },
@@ -79,12 +92,19 @@ function init(renderer, camera) {
         vertexShader: shaderParse(glslify('../glsl/particles.vert')),
         fragmentShader: shaderParse(glslify('../glsl/particles.frag'))
     });
-
-    _particlesMaterial.uniforms.uSphereMap.value.anisotropy = renderer.getMaxAnisotropy();
-    _particlesMaterial.uniforms.uSphereMap.value.needsUpdate = true;
-    _particlesMaterial.uniforms.uSphereMap.value.flipY = false;
     mesh = exports.mesh = new THREE.Mesh(geomtry, _particlesMaterial);
     _quadScene.add(mesh);
+}
+
+function _addSphereTexture(id, img) {
+    var texture = sphereTextures[id] = new THREE.Texture(img);
+    texture.anisotropy = _renderer.getMaxAnisotropy();
+    texture.flipY = false;
+    return texture;
+}
+
+function _onSphereMapLoad() {
+    sphereTextures[this].needsUpdate = true;
 }
 
 function _initGeometry() {
@@ -94,7 +114,7 @@ function _initGeometry() {
     for(var i = 0; i < AMOUNT; i++ ) {
         i3 = i * 3;
         position[i3 + 0] = ((i % TEXTURE_WIDTH) + 0.5) / TEXTURE_WIDTH;
-        position[i3 + 1] = (~~(i / TEXTURE_WIDTH) + 0.5) / TEXTURE_HEIGHT;
+        position[i3 + 1] = ((~~(i / TEXTURE_WIDTH)) + 0.5) / TEXTURE_HEIGHT;
         position[i3 + 2] = 400 + Math.pow(Math.random(), 5) * 750; // size
     }
     _particleGeometry = new THREE.BufferGeometry();
@@ -107,7 +127,10 @@ function _initDepthRenderTarget() {
         uniforms: {
             uParticleSize : {type: 'f', value: settings.particleSize},
             uTexturePosition: {type: 't', value: undef},
-            uCameraPosition: {type: 'v3', value: _camera.position}
+            uTexturePrevPosition: {type: 't', value: undef},
+            uCameraPosition: {type: 'v3', value: _camera.position},
+            uPrevModelViewMatrix: {type: 'm4', value: new THREE.Matrix4()},
+            uMotionMultiplier: {type: 'f', value: 1}
         },
         vertexShader: shaderParse(glslify('../glsl/particlesDepth.vert')),
         fragmentShader: shaderParse(glslify('../glsl/particlesDepth.frag')),
@@ -119,7 +142,7 @@ function _initDepthRenderTarget() {
         magFilter: THREE.NearestFilter,
         format: THREE.RGBAFormat,
         type: THREE.FloatType,
-        stencilBuffer: false,
+        stencilBuffer: false
     });
     _depthRenderTarget.material = material;
     settings.distanceMap = _depthRenderTarget;
@@ -212,13 +235,18 @@ function preRender() {
     var clearColor = _renderer.getClearColor().getHex();
     var clearAlpha = _renderer.getClearAlpha();
 
-    _renderer.setClearColor(0, 0);
+    _renderer.setClearColor(0, 1);
     _renderer.clearTarget(_depthRenderTarget, true, true, true);
     _particles.material = _depthRenderTarget.material;
+    _depthRenderTarget.material.uniforms.uTexturePrevPosition.value = simulator.prevPositionRenderTarget;
     _depthRenderTarget.material.uniforms.uTexturePosition.value = simulator.positionRenderTarget;
     _depthRenderTarget.material.uniforms.uParticleSize.value = settings.particleSize;
     _renderer.render( _particlesScene, _camera, _depthRenderTarget );
     // _renderer.render( _particlesScene, _camera );
+
+    if(!motionBlur.skipMatrixUpdate) {
+        _depthRenderTarget.material.uniforms.uPrevModelViewMatrix.value.copy(_particles.modelViewMatrix);
+    }
 
     _baseInset += (settings.inset - _baseInset) * 0.05;
 
@@ -265,6 +293,7 @@ function update(renderTarget) {
     _renderer.autoClearColor = false;
 
     var uniforms = _particlesMaterial.uniforms;
+    uniforms.uSphereMap.value = sphereTextures[settings.matcap];
     uniforms.uInset.value = _additiveRenderTarget.material.uniforms.uInset.value;
     uniforms.uWashout.value += (settings.washout - uniforms.uWashout.value) * 0.05;
     _renderer.render( _quadScene, _quadCamera, renderTarget );

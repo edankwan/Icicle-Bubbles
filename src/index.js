@@ -11,12 +11,21 @@ var settings = require('./core/settings');
 
 var math = require('./utils/math');
 var mobile = require('./fallback/mobile');
+var encode = require('mout/queryString/encode');
 
+var fboHelper = require('./3d/fboHelper');
 var simulator = require('./3d/simulator');
 var particles = require('./3d/particles');
 var lights = require('./3d/lights');
 var floor = require('./3d/floor');
-var postprocessing = require('./3d/postprocessing');
+
+var postprocessing = require('./3d/postprocessing/postprocessing');
+var dof = require('./3d/postprocessing/dof/dof');
+var vignette = require('./3d/postprocessing/vignette/vignette');
+var motionBlur = require('./3d/postprocessing/motionBlur/motionBlur');
+var fxaa = require('./3d/postprocessing/fxaa/fxaa');
+var vignette = require('./3d/postprocessing/vignette/vignette');
+var bloom = require('./3d/postprocessing/bloom/bloom');
 
 
 var undef;
@@ -88,57 +97,47 @@ function init() {
         // antialias : true,
         preserveDrawingBuffer : true
     });
+    fboHelper.init(_renderer);
 
     _renderer.setClearColor(settings.bgColor);
     // _renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     // _renderer.shadowMap.enabled = true;
     document.body.appendChild(_renderer.domElement);
 
-    var info = _renderer.context.getExtension('WEBGL_debug_renderer_info');
-    var score = 0;
+    // var info = _renderer.context.getExtension('WEBGL_debug_renderer_info');
+    // var score = 0;
 
-    if(info) {
-        var match, isM;
-        var vender = _renderer.context.getParameter(info.UNMASKED_RENDERER_WEBGL);
-        match = vender.match(/(GeForce\sGTX|GeForce\sGT|Radeon\sHD)\s\d+M?/g);
-        if(match) {
-            match = match[0].split(' ');
-            match = match[match.length - 1];
-            isM = match.indexOf('M') > -1;
-            var isAti = match.length - (isM ? 1 : 0) === 4;
-            score = parseInt(match.substr(1, 1), 10);
-            score -= isM ? 2 : 0;
-            score -= isAti ? 2 : 0;
-            score += parseInt(match.substr(0, 1), 10) * 0.5;
-        } else {
-            match = vender.match(/Radeon\sR9\sM?\d+X?/g);
-            if(match) {
-                match = match[0].split(' ');
-                match = match[match.length - 1];
-                isM = match.indexOf('M') > -1;
-                if(isM) match = match.substr(1);
-                score = parseInt(match.substr(1, 1), 10) - (isM ? 3 : 0) + (match.indexOf('X') > -1 ? 2 : 0);
-            }
-        }
-    }
+    // if(info) {
+    //     var match, isM;
+    //     var vender = _renderer.context.getParameter(info.UNMASKED_RENDERER_WEBGL);
+    //     match = vender.match(/(GeForce\sGTX|GeForce\sGT|Radeon\sHD)\s\d+M?/g);
+    //     if(match) {
+    //         match = match[0].split(' ');
+    //         match = match[match.length - 1];
+    //         isM = match.indexOf('M') > -1;
+    //         var isAti = match.length - (isM ? 1 : 0) === 4;
+    //         score = parseInt(match.substr(1, 1), 10);
+    //         score -= isM ? 2 : 0;
+    //         score -= isAti ? 2 : 0;
+    //         score += parseInt(match.substr(0, 1), 10) * 0.5;
+    //     } else {
+    //         match = vender.match(/Radeon\sR9\sM?\d+X?/g);
+    //         if(match) {
+    //             match = match[0].split(' ');
+    //             match = match[match.length - 1];
+    //             isM = match.indexOf('M') > -1;
+    //             if(isM) match = match.substr(1);
+    //             score = parseInt(match.substr(1, 1), 10) - (isM ? 3 : 0) + (match.indexOf('X') > -1 ? 2 : 0);
+    //         }
+    //     }
+    // }
 
     if(mobile.isMobile) {
-        score = 1;
         settings.simulatorTextureWidth = 32;
         settings.simulatorTextureHeight = 32;
         settings.particleSize = 16;
         settings.vignetteMultiplier = 0.5;
-    }
-
-    if(score < 8.5) {
-        settings.blur = 0;
-        settings.blurZ = 0;
-        settings.dof = 0;
-
-        if(score < 7.5 && score) {
-            settings.particleSize = 18;
-            settings.fxaa = false;
-        }
+        settings.fxaa = false;
     }
 
     _scene = new THREE.Scene();
@@ -147,9 +146,10 @@ function init() {
     _camera.position.set(300, 60, 300).normalize().multiplyScalar(500);
     settings.cameraPosition = _camera.position;
 
-    postprocessing.init(_renderer);
     simulator.init(_renderer);
     particles.init(_renderer, _camera);
+
+    postprocessing.init(_renderer, _scene, _camera);
 
     lights.init(_renderer);
     _scene.add(lights.mesh);
@@ -167,23 +167,80 @@ function init() {
 
     _gui = new dat.GUI();
     var simulatorGui = _gui.addFolder('Simulator');
+    simulatorGui.add(settings.query, 'amount', settings.amountList).onChange(function(){
+        if (confirm('It will restart the demo')) {
+            window.location.href = window.location.href.split('#')[0] + encode(settings.query).replace('?', '#');
+            window.location.reload();
+        }
+    });
     simulatorGui.add(settings, 'speed', 0, 2).listen();
     simulatorGui.add(settings, 'dieSpeed', 0, 0.05).listen();
     simulatorGui.add(settings, 'radius', 0.1, 4).listen();
+    simulatorGui.add(settings, 'curlSize', 0.001, 0.05).listen();
     simulatorGui.add(settings, 'attraction', -2, 2).listen();
     simulatorGui.add({toggleMovement: _toggleMovement}, 'toggleMovement');
 
     var renderingGui = _gui.addFolder('Rendering');
+    renderingGui.add(settings, 'matcap', ['default', 'plastic', 'metal']);
     renderingGui.add(settings, 'particleSize', 16, 48).name('particle size');
     renderingGui.add(settings, 'inset', 0, 3, 0.0001).listen();
     renderingGui.add(settings, 'washout', 0, 1, 0.0001).step(0.001).listen();
     renderingGui.add(settings, 'brightness', 0, 1, 0.0001).step(0.001).listen();
-    var blur = renderingGui.add(settings, 'blur', 0, 3, 0.0001).listen();
-    var blurZ = renderingGui.add(settings, 'blurZ', 0, 1, 0.0001).step(0.001).listen();
-    var dof = renderingGui.add(settings, 'dof', 0, 3, 0.0001).listen();
-    var dofMouse = renderingGui.add(settings, 'dofMouse').name('focus on mouse').listen();
-    renderingGui.add(settings, 'fxaa').listen();
+    var blurControl = renderingGui.add(settings, 'blur', 0, 3, 0.0001).listen();
+    var blurZControl = renderingGui.add(settings, 'blurZ', 0, 1, 0.0001).step(0.001).listen();
+    blurControl.onChange(enableGuiControl.bind(this, blurZControl));
+    enableGuiControl(blurZControl, settings.blur);
     renderingGui.addColor(settings, 'bgColor').listen();
+
+
+    var postprocessingGui = _gui.addFolder('Post-Processing');
+
+    var dofControl = postprocessingGui.add(settings, 'dof', 0, 3, 0.0001).listen();
+    var dofMouseControl = postprocessingGui.add(settings, 'dofMouse').name('dof on mouse').listen();
+    dofControl.onChange(enableGuiControl.bind(this, dofMouseControl));
+    enableGuiControl(dofMouseControl, settings.dof);
+    postprocessingGui.add(settings, 'fxaa').listen();
+
+    motionBlur.maxDistance = 120;
+    motionBlur.motionMultiplier = 2;
+    motionBlur.linesRenderTargetScale = settings.motionBlurQualityMap[settings.query.motionBlurQuality];
+    var motionBlurControl = postprocessingGui.add(settings, 'motionBlur');
+    var motionMaxDistance = postprocessingGui.add(motionBlur, 'maxDistance', 1, 300).name('motion distance').listen();
+    var motionMultiplier = postprocessingGui.add(motionBlur, 'motionMultiplier', 0.1, 15).name('motion multiplier').listen();
+    var motionQuality = postprocessingGui.add(settings.query, 'motionBlurQuality', settings.motionBlurQualityList).name('motion quality').onChange(function(val){
+        motionBlur.linesRenderTargetScale = settings.motionBlurQualityMap[val];
+        motionBlur.resize();
+    });
+    var controlList = [motionMaxDistance, motionMultiplier, motionQuality];
+    motionBlurControl.onChange(enableGuiControl.bind(this, controlList));
+    enableGuiControl(controlList, settings.motionBlur);
+
+    var bloomControl = postprocessingGui.add(settings, 'bloom');
+    var bloomRadiusControl = postprocessingGui.add(bloom, 'blurRadius', 0, 3).name('bloom radius');
+    var bloomAmountControl = postprocessingGui.add(bloom, 'amount', 0, 3).name('bloom amount');
+    controlList = [bloomRadiusControl, bloomAmountControl];
+    bloomControl.onChange(enableGuiControl.bind(this, controlList));
+    enableGuiControl(controlList, settings.bloom);
+
+    postprocessingGui.add(settings, 'vignette');
+
+    postprocessingGui.open();
+
+    function enableGuiControl(controls, flag) {
+        controls = controls.length ? controls : [controls];
+        var control;
+        for(var i = 0, len = controls.length; i < len; i++) {
+            control = controls[i];
+            control.__li.style.pointerEvents = flag ? 'auto' : 'none';
+            control.domElement.parentNode.style.opacity = flag ? 1 : 0.1;
+        }
+    }
+
+    var preventDefault = function(evt){evt.preventDefault();this.blur();};
+    Array.prototype.forEach.call(_gui.domElement.querySelectorAll('input[type="checkbox"],select'), function(elem){
+        elem.onkeyup = elem.onkeydown = preventDefault;
+        elem.style.color = '#000';
+    });
 
     if(!settings.isMobile) {
         simulatorGui.open();
@@ -200,21 +257,6 @@ function init() {
         _isSkipRendering = false;
     }}, 'fn').name('save as image');
 
-
-    function onBlurChange(v) {
-        blurZ.__li.style.pointerEvents = v ? 'auto' : 'none';
-        blurZ.domElement.parentNode.style.opacity = v ? 1 : 0.1;
-    }
-    blur.onChange(onBlurChange);
-    onBlurChange(settings.blur);
-
-    function onDofChange(v) {
-        dofMouse.__li.style.pointerEvents = v ? 'auto' : 'none';
-        dofMouse.domElement.parentNode.style.opacity = v ? 1 : 0.1;
-    }
-    dof.onChange(onDofChange);
-    onDofChange(settings.dof);
-
     _gui.close();
 
     _logo = document.querySelector('.logo');
@@ -226,9 +268,7 @@ function init() {
     _footerItems = document.querySelectorAll('.footer span');
 
     _gui.domElement.addEventListener('mousedown', _stopPropagation);
-    // _gui.domElement.addEventListener('mousemove', _stopPropagation);
     _gui.domElement.addEventListener('touchstart', _stopPropagation);
-    // _gui.domElement.addEventListener('touchmove', _stopPropagation);
 
     window.addEventListener('resize', _onResize);
     window.addEventListener('mousemove', _onMove);
@@ -254,10 +294,10 @@ function _bindTouch(func) {
 }
 
 function _onMove(evt) {
-    settings.mouseX = evt.pageX;
-    settings.mouseY = evt.pageY;
-    settings.mouse.x = (evt.pageX / _width) * 2 - 1;
-    settings.mouse.y = -(evt.pageY / _height) * 2 + 1;
+    settings.mouseX = evt.clientX;
+    settings.mouseY = evt.clientY;
+    settings.mouse.x = (settings.mouseX / _width) * 2 - 1;
+    settings.mouse.y = -(settings.mouseY / _height) * 2 + 1;
 }
 
 function _onKeyUp(evt) {
@@ -294,6 +334,8 @@ function _loop() {
 }
 
 function _render(dt, newTime) {
+
+    motionBlur.skipMatrixUpdate = !(settings.dieSpeed || settings.speed) && settings.motionBlurPause;
 
     _bgColor.setStyle(settings.bgColor);
     var tmpColor = floor.mesh.material.color;
@@ -346,18 +388,18 @@ function _render(dt, newTime) {
         _footerItems[i].style.transform = 'translate3d(0,' + ((1 - Math.pow(ratio, 3)) * 50) + 'px,0)';
     }
 
-    var renderTarget = postprocessing.render(_scene, _camera);
-    particles.update(renderTarget, dt);
-    if(settings.dof) {
-        postprocessing.renderDof();
-    }
+    fxaa.enabled = !!settings.fxaa;
+    dof.enabled = !!settings.dof;
+    motionBlur.enabled = !!settings.motionBlur;
+    vignette.enabled = !!settings.vignette;
+    bloom.enabled = !!settings.bloom;
 
-    if(settings.fxaa) {
-        postprocessing.renderVignette();
-        postprocessing.renderFxaa(true);
-    } else {
-        postprocessing.renderVignette(true);
-    }
+    var uniforms = vignette.uniforms;
+    var reduction = (1.5 + settings.brightness * 1.5) * settings.vignetteMultiplier;
+    var boost = 0.8 + settings.brightness * 0.55;
+    uniforms.u_reduction.value += (reduction - uniforms.u_reduction.value) * 0.05;
+    uniforms.u_boost.value += (boost - uniforms.u_boost.value) * 0.05;
+    postprocessing.render(dt, newTime);
 
     settings.prevMouseX = settings.mouseX;
     settings.prevMouseY = settings.mouseY;
@@ -366,7 +408,7 @@ function _render(dt, newTime) {
 
 }
 
-quickLoader.add('images/matcap.jpg', {
+quickLoader.add('images/matcap_metal.jpg', {
     onLoad: function(img) {
         settings.sphereMap = img;
     }

@@ -24,6 +24,7 @@ var AMOUNT;
 exports.init = init;
 exports.update = update;
 exports.positionRenderTarget = undef;
+exports.prevPositionRenderTarget = undef;
 exports.initAnimation = 0;
 
 function init(renderer) {
@@ -71,7 +72,8 @@ function init(renderer) {
             radius: { type: 'f', value: 0 },
             attraction: { type: 'f', value: 0 },
             time: { type: 'f', value: 0 },
-            initAnimation: { type: 'f', value: 0 }
+            initAnimation: { type: 'f', value: 0 },
+            curlSize: { type: 'f', value: 0.015 }
         },
         vertexShader: rawShaderPrefix + shaderParse(glslify('../glsl/quad.vert')),
         fragmentShader: rawShaderPrefix + shaderParse(glslify('../glsl/position.frag')),
@@ -150,24 +152,30 @@ function update(dt) {
 
     dt = dt * settings.speed;
 
-    var autoClearColor = _renderer.autoClearColor;
-    var clearColor = _renderer.getClearColor().getHex();
-    var clearAlpha = _renderer.getClearAlpha();
+    if(settings.speed || settings.dieSpeed) {
 
-    _renderer.autoClearColor = false;
+        var autoClearColor = _renderer.autoClearColor;
+        var clearColor = _renderer.getClearColor().getHex();
+        var clearAlpha = _renderer.getClearAlpha();
 
-    _positionShader.uniforms.dieSpeed.value = settings.dieSpeed;
-    _positionShader.uniforms.radius.value = settings.radius;
-    _positionShader.uniforms.attraction.value = settings.attraction * settings.speed;
-    _positionShader.uniforms.speed.value = settings.speed;
-    _positionShader.uniforms.initAnimation.value = exports.initAnimation;
+        _renderer.autoClearColor = false;
 
-    _positionShader.uniforms.mouse3d.value.copy(settings.mouse3d);
-    _updatePosition(dt);
+        _positionShader.uniforms.curlSize.value = settings.curlSize;
+        _positionShader.uniforms.dieSpeed.value = settings.dieSpeed;
+        _positionShader.uniforms.radius.value = settings.radius;
+        _positionShader.uniforms.attraction.value = settings.attraction * settings.speed;
+        _positionShader.uniforms.speed.value = settings.speed;
+        _positionShader.uniforms.initAnimation.value = exports.initAnimation;
 
-    _renderer.setClearColor(clearColor, clearAlpha);
-    _renderer.autoClearColor = autoClearColor;
-    exports.positionRenderTarget = _positionRenderTarget;
+        _positionShader.uniforms.mouse3d.value.copy(settings.mouse3d);
+        _updatePosition(dt);
+
+        _renderer.setClearColor(clearColor, clearAlpha);
+        _renderer.autoClearColor = autoClearColor;
+        exports.positionRenderTarget = _positionRenderTarget;
+        exports.prevPositionRenderTarget = _positionRenderTarget2;
+
+    }
 
 }
 

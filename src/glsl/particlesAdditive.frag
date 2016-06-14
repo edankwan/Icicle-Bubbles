@@ -14,7 +14,7 @@ void main() {
     float isVisible = step(-1.0 + EPS, -length(toCenter));
     if(isVisible < 0.5) discard;
 
-    float centerZ = texture2D( uDepth, gl_FragCoord.xy  / uResolution ).r;
+    float centerZ = texture2D( uDepth, gl_FragCoord.xy  / uResolution ).a;
     float zLength = sqrt(1.0 - toCenter.x * toCenter.x - toCenter.y * toCenter.y) * vHalfSize;
     float z = centerZ - vDepth + zLength;
 
