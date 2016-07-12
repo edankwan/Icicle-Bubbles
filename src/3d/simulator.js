@@ -150,6 +150,8 @@ function _createPositionTexture() {
 
 function update(dt) {
 
+    var deltaRatio = dt / 16.6667;
+
     dt = dt * settings.speed;
 
     if(settings.speed || settings.dieSpeed) {
@@ -161,10 +163,10 @@ function update(dt) {
         _renderer.autoClearColor = false;
 
         _positionShader.uniforms.curlSize.value = settings.curlSize;
-        _positionShader.uniforms.dieSpeed.value = settings.dieSpeed;
+        _positionShader.uniforms.dieSpeed.value = settings.dieSpeed * deltaRatio;
         _positionShader.uniforms.radius.value = settings.radius;
-        _positionShader.uniforms.attraction.value = settings.attraction * settings.speed;
-        _positionShader.uniforms.speed.value = settings.speed;
+        _positionShader.uniforms.attraction.value = settings.attraction * settings.speed * deltaRatio;
+        _positionShader.uniforms.speed.value = settings.speed * deltaRatio;
         _positionShader.uniforms.initAnimation.value = exports.initAnimation;
 
         _positionShader.uniforms.mouse3d.value.copy(settings.mouse3d);
